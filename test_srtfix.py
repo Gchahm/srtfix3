@@ -1,5 +1,4 @@
 """Unit tests for the srtfix.py lib"""
-from exceptions import Exception
 from srtfix import Time, Span, TimeParseError
 import unittest
 import random
@@ -21,7 +20,7 @@ def data_provider(data):
                 try:
                     fn(self, *(i + args))
                 except AssertionError as e:
-                    raise AssertionError(e.message + " (data set used: %s)" % repr(i))
+                    raise AssertionError(str(e) + " (data set used: %s)" % repr(i))
         return test_decorated
     return test_decorator
 
@@ -52,7 +51,7 @@ class TimeTest(unittest.TestCase):
 
     @data_provider(srt_format_data)
     def test_parse_srt_format(self, expected, srt_format):
-        self.assertEquals(expected, Time.parse(srt_format).ms)
+        self.assertEqual(expected, Time.parse(srt_format).ms)
 
     @data_provider( (("",), ("unparsable",), ( "--0",),) )
     @expect_exception(TimeParseError)
@@ -99,7 +98,7 @@ class TimeTest(unittest.TestCase):
 
     @data_provider(shorthand_format_data)
     def test_parse_shorthand_format(self, expected, shorthand_format):
-        self.assertEquals(expected, Time.parse(shorthand_format).ms)
+        self.assertEqual(expected, Time.parse(shorthand_format).ms)
 
     str_data = (
         (0, '00:00:00,000'),
@@ -132,7 +131,7 @@ class TimeTest(unittest.TestCase):
 
     @data_provider(str_data)
     def test_str(self, time, expected):
-        self.assertEquals(expected, str(Time(time)))
+        self.assertEqual(expected, str(Time(time)))
 
     parts_data = lambda: (
         (0, (0, 0, 0, 0)),
@@ -153,7 +152,7 @@ class TimeTest(unittest.TestCase):
     def test_int(self):
         r = random.randint(1, 99999999)
         t = Time(r)
-        self.assertEquals(int(t), r)
+        self.assertEqual(int(t), r)
 
     add_data = (
         (3000, Time(1000), Time(2000)),
@@ -167,7 +166,7 @@ class TimeTest(unittest.TestCase):
 
     @data_provider(add_data)
     def test_add(self, expect, t1, t2):
-        self.assertEquals(expect, int(t1 + t2))
+        self.assertEqual(expect, int(t1 + t2))
 
     mul_data = (
         (3000, Time(1000), 3),
@@ -175,37 +174,36 @@ class TimeTest(unittest.TestCase):
 
     @data_provider(mul_data)
     def test_mul(self, expect, t1, t2):
-        self.assertEquals(expect, int(t1 * t2))
+        self.assertEqual(expect, int(t1 * t2))
 
 
 class SpanTest(unittest.TestCase):
     span_format_data = (
-        ( [1, 2], '0:0:0,1 --> 0:0:0,2' ),
-        ( [35999990, 35999999], '9:59:59,990 --> 9:59:59,999' ),
+        ([1, 2], '0:0:0,1 --> 0:0:0,2'),
+        ([35999990, 35999999], '9:59:59,990 --> 9:59:59,999'),
     )
 
     @data_provider(span_format_data)
     def test_parse(self, times, span_format):
         s = Span.parse(span_format)
-        self.assertEquals(times, map(int, (s.stime, s.etime)))
+        self.assertEqual(times, list(map(int, (s.stime, s.etime))))
 
     @data_provider(span_format_data)
     def test_add(self, times, span_format):
         s = Span.parse(span_format) + 100
-        self.assertEquals(map(lambda t: t + 100, times), map(int, (s.stime, s.etime)))
+        self.assertEqual(list(map(lambda t: t + 100, times)), list(map(int, (s.stime, s.etime))))
 
     @data_provider(span_format_data)
     def test_mul(self, times, span_format):
         s = Span.parse(span_format) * 4
-        self.assertEquals(map(lambda t: t * 4, times), map(int, (s.stime, s.etime)))
+        self.assertEqual(list(map(lambda t: t * 4, times)), list(map(int, (s.stime, s.etime))))
 
     str_data = (
-        ( '00:00:00,001 --> 00:00:00,002', '0:0:0,1 --> 0:0:0,2' ),
-        ( '09:59:59,990 --> 09:59:59,999', '9:59:59,990 --> 9:59:59,999' ),
+        ('00:00:00,001 --> 00:00:00,002', '0:0:0,1 --> 0:0:0,2'),
+        ('09:59:59,990 --> 09:59:59,999', '9:59:59,990 --> 9:59:59,999'),
     )
+
     @data_provider(str_data)
     def test_mul(self, formatted, span_format):
         s = Span.parse(span_format)
-        self.assertEquals(formatted, str(s))
-
-
+        self.assertEqual(formatted, str(s))

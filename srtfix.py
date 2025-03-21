@@ -5,37 +5,40 @@ import re
 import sys
 import argparse
 
-class TimeParseError:
+
+class TimeParseError(Exception):
     'Thrown whenever a parse error occurs in Time.parse'
+
     def __init__(self, msg, time):
         self._msg = msg
         self._time = time
 
     def __str__(self):
         return "%s (%s)" % (self._msg, self._time)
-    
+
+
 class Time:
     '''A Time abstraction class, mapping time values to milliseconds internally and representing it
     as strings. The class implements adding, substracting, multiplication and division through
     arithmetic operators'''
 
     _HOURS = 3600000
-    _MINS  = 60000
-    _SECS  = 1000
+    _MINS = 60000
+    _SECS = 1000
     _MSECS = 1
-    
+
     PARTS = {
         'h': _HOURS,
         'm': _MINS,
         's': _SECS,
         'ms': _MSECS
     }
-    PARTS_V = PARTS.values()
+    PARTS_V = list(PARTS.values())
     PARTS_V.sort(reverse=True)
 
     RE_TIME = re.compile(r'(\d{1,2}):(\d{1,2}):(\d{1,2}),(\d+)')
     RE_OFFSET = re.compile(r'^-?(\d+)(ms|[hms])-?')
-    
+
     @classmethod
     def parse(cls, time):
         """Parses a string representation of time and returns a Time instance. Valid formats are:
@@ -67,30 +70,29 @@ class Time:
                 msecs = -msecs
         else:
             try:
-                t = map(int, cls.RE_TIME.match(time).group(1, 2, 3, 4))
+                t = list(map(int, cls.RE_TIME.match(time).group(1, 2, 3, 4)))
             except AttributeError:
                 raise TimeParseError("Invalid format, could not parse", time)
             msecs = 0
             for i, v in enumerate(cls.PARTS_V):
                 msecs += v * t[i]
         return Time(msecs)
-            
-        
+
     def __init__(self, ms):
         self.ms = int(ms)
         self._ms = None
-        
+
     def __str__(self):
         ret = ""
         if self.ms < 0:
             ret += "-"
-        ret += ":".join(map(lambda d: "%02d" % abs(d), self._asdict().values()[0:3]))
+        ret += ":".join(map(lambda d: "%02d" % abs(d), list(self._asdict().values())[0:3]))
         ret += ',%03d' % abs(self._asdict()[self._MSECS])
         return ret
 
     def __int__(self):
         return self.ms
-           
+
     def __add__(self, ms):
         if isinstance(ms, str):
             ms = Time.parse(ms)
@@ -98,7 +100,7 @@ class Time:
             ms = ms.ms
 
         return Time(self.ms + int(ms))
-        
+
     def __mul__(self, factor):
         return Time(self.ms * factor)
 
@@ -114,23 +116,24 @@ class Time:
                 rest %= i
         return self._d
 
+
 class Span:
     SEP = " --> "
-    
+
     @classmethod
     def parse(cls, line):
         return Span(*map(Time.parse, map(str.strip, line.split(cls.SEP))))
-        
+
     def __init__(self, stime, etime):
         self.stime = stime
         self.etime = etime
-        
+
     def __str__(self):
         return Span.SEP.join(map(str, (self.stime, self.etime)))
-        
+
     def __add__(self, time):
         return Span(self.stime + time, self.etime + time)
-        
+
     def __mul__(self, factor):
         return Span(self.stime * factor, self.etime * factor)
 
@@ -158,22 +161,21 @@ class Entry:
         self.index = index
         self.span = span
         self.data = data
-        
+
     def __str__(self):
         return "\r\n".join([
-            str(self.index), 
-            str(self.span), 
+            str(self.index),
+            str(self.span),
             str(self.data)
         ]) + "\r\n"
-        
+
     def __add__(self, ms):
         return Entry(self.index, self.span + ms, self.data)
-        
+
     def __mul__(self, factor):
         return Entry(self.index, self.span * factor, self.data)
 
-    
-    
+
 class EntryList:
     @classmethod
     def parse(cls, lines):
@@ -181,31 +183,31 @@ class EntryList:
         for i, entry in Entry.group_lines(map(str.strip, lines)):
             ret.append(Entry(i, Span.parse(entry[0]), "\r\n".join(entry[1:])))
         return ret
-                
+
     def __init__(self):
         self.entries = {}
-        
+
     def append(self, entry):
-        self.entries[entry.index]=entry
+        self.entries[entry.index] = entry
 
     def __iter__(self):
         return iter(self.entries)
-        
+
     def __getitem__(self, index):
         return self.entries[index]
-        
+
     def __add__(self, time):
         ret = EntryList()
         for i in self.entries:
             ret.append(self.entries[i] + time)
         return ret
-        
+
     def __mul__(self, factor):
         ret = EntryList()
         for i in self.entries:
             ret.append(self.entries[i] * factor)
         return ret
-        
+
     def __str__(self):
         return "".join(map(str, self.entries.values()))
 
@@ -252,24 +254,24 @@ def main():
     if o.input[0] == '-':
         ifile = sys.stdin
     else:
-        ifile = open(o.input[0], 'r')
+        ifile = open(o.input[0], 'r', encoding='utf-8')
     if o.output[0] == '-':
         ofile = sys.stdout
     else:
-        ofile = open(o.output[0], 'w')
-        
+        ofile = open(o.output[0], 'w', encoding='utf-8')
+
     data = EntryList.parse(iter(ifile))
     if o.shift:
         data += o.shift[0]
     if o.convert_framerate:
         try:
             (iframes, oframes) = map(float, o.convert_framerate[0].split('/'))
-            o.convert_framerate = iframes/oframes
-        except:
+            o.convert_framerate = iframes / oframes
+        except Exception as e:
             pass
         data *= float(o.convert_framerate)
     ofile.write(str(data))
-    
+
+
 if __name__ == "__main__":
     main()
-
